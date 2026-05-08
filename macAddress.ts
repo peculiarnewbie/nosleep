@@ -1,4 +1,1 @@
-export const macAddress = "your mac address";
-
-// example:
-// export const macAddress = "AA:AA:AA:AA:AA:AA";
+export const macAddress = "D8:43:AE:5F:AD:31";
