@@ -19,6 +19,36 @@ var devices = []Device{
 	{Name: "Desktop", MAC: "D8:43:AE:5F:AD:31"},
 }
 
+func getBroadcastAddr() (net.IP, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok || ipNet.IP.To4() == nil {
+				continue
+			}
+			ip := ipNet.IP.To4()
+			mask := ipNet.Mask
+			bcast := make(net.IP, 4)
+			for i := 0; i < 4; i++ {
+				bcast[i] = ip[i] | ^mask[i]
+			}
+			return bcast, nil
+		}
+	}
+	return nil, fmt.Errorf("no suitable network interface found")
+}
+
 func wakeMAC(mac string) error {
 	cleaned := strings.NewReplacer(":", "", "-", "").Replace(mac)
 	macBytes, err := hex.DecodeString(cleaned)
@@ -34,7 +64,13 @@ func wakeMAC(mac string) error {
 		copy(packet[6+i*6:], macBytes)
 	}
 
-	addr := &net.UDPAddr{IP: net.IPv4bcast, Port: 9}
+	bcast, err := getBroadcastAddr()
+	if err != nil {
+		return fmt.Errorf("failed to get broadcast address: %w", err)
+	}
+	log.Printf("[WOL] broadcasting to %s", bcast)
+
+	addr := &net.UDPAddr{IP: bcast, Port: 9}
 	conn, err := net.DialUDP("udp4", nil, addr)
 	if err != nil {
 		return fmt.Errorf("failed to open UDP connection: %w", err)
