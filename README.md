@@ -1,10 +1,10 @@
-update your pc's mac address in `macAddress.ts` (find it using ipconfig)
+edit `main.go` to add your devices, then:
 
 ```
-npm install
-npm run dev
+go build -o nosleep.exe .
+.\nosleep.exe
 ```
 
 ```
-open http://localhost:3000/wake
+open http://localhost:3000/wake?device=Desktop
 ```
