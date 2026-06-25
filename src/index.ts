@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { macAddress } from "../macAddress";
+import { devices } from "../macAddress";
 import * as wol from "wake_on_lan";
 
 const app = new Hono();
@@ -14,22 +14,41 @@ app.get("/invoke", (c) => {
 	return c.text("invoked!");
 });
 
-app.get("/wake", async (c) => {
-	// var wol = require("wake_on_lan");
+app.get("/devices", (c) => {
+	return c.json(devices);
+});
 
-	let res;
-	wol.wake(macAddress, function (error) {
-		if (error) {
-			res = "error";
-		} else {
-			res = "wol!";
-		}
+app.get("/wake", async (c) => {
+	const name = c.req.query("device");
+	if (!name) {
+		return c.json({ error: "Missing ?device= query param", devices: devices.map((d) => d.name) }, 400);
+	}
+
+	const device = devices.find((d) => d.name.toLowerCase() === name.toLowerCase());
+	if (!device) {
+		return c.json({ error: `Unknown device: "${name}"`, devices: devices.map((d) => d.name) }, 404);
+	}
+
+	const result = await new Promise<"ok" | string>((resolve) => {
+		wol.wake(device.mac, (error) => {
+			if (error) {
+				resolve(error.message ?? String(error));
+			} else {
+				resolve("ok");
+			}
+		});
 	});
 
-	await new Promise((r) => setTimeout(r, 2000));
-	console.log("waited 2s");
+	const info = {
+		device: device.name,
+		mac: device.mac,
+		status: result === "ok" ? "sent" : "failed",
+		...(result !== "ok" && { error: result }),
+	};
 
-	return c.text(res ?? "huh");
+	console.log(`[WOL] ${device.name} (${device.mac}) → ${info.status}`);
+
+	return c.json(info);
 });
 
 const port = 3000;
