@@ -197,6 +197,8 @@ func main() {
       el.className = 'fail';
     }
     el.style.display = 'block';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.style.display = 'none'; }, 5000);
   }
   </script>
 </body>
