@@ -28,7 +28,8 @@ func getBroadcastAddr() (net.IP, error) {
 		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
-		if strings.HasPrefix(iface.Name, "Tailscale") || strings.HasPrefix(iface.Name, "wg") {
+		name := strings.ToLower(iface.Name)
+		if strings.Contains(name, "tailscale") || strings.Contains(name, "wg") || strings.Contains(name, "tun") || strings.Contains(name, "tap") {
 			continue
 		}
 		addrs, err := iface.Addrs()
