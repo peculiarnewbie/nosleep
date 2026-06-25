@@ -28,6 +28,9 @@ func getBroadcastAddr() (net.IP, error) {
 		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
+		if strings.HasPrefix(iface.Name, "Tailscale") || strings.HasPrefix(iface.Name, "wg") {
+			continue
+		}
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
@@ -43,6 +46,7 @@ func getBroadcastAddr() (net.IP, error) {
 			for i := 0; i < 4; i++ {
 				bcast[i] = ip[i] | ^mask[i]
 			}
+			log.Printf("[WOL] using interface %s (%s)", iface.Name, ip)
 			return bcast, nil
 		}
 	}
@@ -64,21 +68,26 @@ func wakeMAC(mac string) error {
 		copy(packet[6+i*6:], macBytes)
 	}
 
-	bcast, err := getBroadcastAddr()
-	if err != nil {
-		return fmt.Errorf("failed to get broadcast address: %w", err)
+	targets := []net.IP{net.IPv4bcast}
+	if bcast, err := getBroadcastAddr(); err == nil {
+		targets = []net.IP{bcast, net.IPv4bcast}
 	}
-	log.Printf("[WOL] broadcasting to %s", bcast)
 
-	addr := &net.UDPAddr{IP: bcast, Port: 9}
-	conn, err := net.DialUDP("udp4", nil, addr)
-	if err != nil {
-		return fmt.Errorf("failed to open UDP connection: %w", err)
-	}
-	defer conn.Close()
-
-	if _, err = conn.Write(packet); err != nil {
-		return fmt.Errorf("failed to send magic packet: %w", err)
+	for _, target := range targets {
+		log.Printf("[WOL] broadcasting to %s", target)
+		addr := &net.UDPAddr{IP: target, Port: 9}
+		conn, err := net.DialUDP("udp4", nil, addr)
+		if err != nil {
+			log.Printf("[WOL] failed to open UDP to %s: %v", target, err)
+			continue
+		}
+		_, err = conn.Write(packet)
+		conn.Close()
+		if err != nil {
+			log.Printf("[WOL] failed to send to %s: %v", target, err)
+			continue
+		}
+		log.Printf("[WOL] sent to %s", target)
 	}
 	return nil
 }
