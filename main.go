@@ -157,7 +157,7 @@ func main() {
 </html>`, buttons)
 	})
 
-	port := 3000
+	port := 3488
 	log.Printf("Server is running on port %d", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
