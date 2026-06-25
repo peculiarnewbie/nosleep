@@ -29,7 +29,7 @@ func getBroadcastAddr() (net.IP, error) {
 			continue
 		}
 		name := strings.ToLower(iface.Name)
-		if strings.Contains(name, "tailscale") || strings.Contains(name, "wg") || strings.Contains(name, "tun") || strings.Contains(name, "tap") {
+		if strings.Contains(name, "tailscale") || strings.Contains(name, "wg") || strings.Contains(name, "tun") || strings.Contains(name, "tap") || strings.Contains(name, "vethernet") || strings.Contains(name, "virtual") {
 			continue
 		}
 		addrs, err := iface.Addrs()
